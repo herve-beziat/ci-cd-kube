@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src http://localhost:*">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pocketman</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="logo">Pocketman</h1>
+        <button type="button" id="theme-toggle" class="theme-toggle" title="Changer de thème"></button>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-header">
+          <h2 class="section-title">Historique</h2>
+          <button type="button" id="clear-history" class="clear-btn" title="Vider l'historique">✕</button>
+        </div>
+        <ul id="history-list" class="item-list"></ul>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-header">
+          <h2 class="section-title">Collections</h2>
+          <button type="button" id="new-collection" class="clear-btn" title="Nouvelle collection">+</button>
+        </div>
+        <ul id="collections-list" class="item-list"></ul>
+      </div>
+    </aside>
+
+    <main class="main">
+      <form id="request-form" class="request-form">
+        <div class="request-bar">
+          <select id="method" class="method-select">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="PATCH">PATCH</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <input
+            type="text"
+            id="url"
+            class="url-input"
+            placeholder="https://api.example.com/endpoint"
+            required
+          />
+          <button type="submit" class="send-btn">Envoyer</button>
+          <button type="button" id="save-to-collection" class="save-btn" title="Sauvegarder dans une collection">&#128190;</button>
+        </div>
+
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="headers">Headers</button>
+          <button type="button" class="tab" data-tab="body">Body</button>
+        </div>
+
+        <div id="tab-headers" class="tab-panel active">
+          <div id="headers-list" class="headers-list"></div>
+          <button type="button" id="add-header" class="add-btn">+ Ajouter un header</button>
+        </div>
+
+        <div id="tab-body" class="tab-panel">
+          <textarea id="body" class="body-input" placeholder='{"key": "value"}'></textarea>
+        </div>
+      </form>
+
+      <section class="response-section">
+        <div id="response-meta" class="response-meta hidden">
+          <span id="response-status" class="response-status"></span>
+          <span id="response-time" class="response-time"></span>
+        </div>
+        <div class="response-tabs hidden" id="response-tabs">
+          <button type="button" class="tab active" data-rtab="body">Body</button>
+          <button type="button" class="tab" data-rtab="headers">Headers</button>
+        </div>
+        <div id="rtab-body" class="tab-panel active response-panel">
+          <pre id="response-body" class="response-body">La réponse s'affichera ici.</pre>
+        </div>
+        <div id="rtab-headers" class="tab-panel response-panel">
+          <table id="response-headers-table" class="headers-table"></table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="delete-collection-modal" class="modal-overlay">
+    <div class="modal">
+      <h3>Supprimer la collection</h3>
+      <p id="delete-collection-message" class="modal-message"></p>
+      <div class="modal-actions">
+        <button type="button" id="delete-collection-cancel" class="btn-cancel">Annuler</button>
+        <button type="button" id="delete-collection-confirm" class="btn-danger">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="new-collection-modal" class="modal-overlay">
+    <div class="modal">
+      <h3>Nouvelle collection</h3>
+      <input type="text" id="modal-collection-name" placeholder="Nom de la collection">
+      <div class="modal-actions">
+        <button type="button" id="new-collection-cancel" class="btn-cancel">Annuler</button>
+        <button type="button" id="new-collection-confirm" class="btn-primary">Créer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="save-modal" class="modal-overlay">
+    <div class="modal">
+      <h3>Sauvegarder dans une collection</h3>
+      <select id="modal-collection-select"></select>
+      <input type="text" id="modal-item-name" placeholder="Nom de la requête (optionnel)">
+      <div class="modal-actions">
+        <button type="button" id="modal-cancel" class="btn-cancel">Annuler</button>
+        <button type="button" id="modal-confirm" class="btn-primary">Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="response.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

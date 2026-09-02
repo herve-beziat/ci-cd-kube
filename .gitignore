@@ -1,0 +1,8 @@
+node_modules/
+dist/
+out/
+coverage/
+db/pocketman.db
+db/pocketman.db-shm
+db/pocketman.db-wal
+.DS_Store
