@@ -1,0 +1,22 @@
+name: Notify Google Chat
+description: Send a message to a Google Chat space via an incoming webhook
+
+inputs:
+  webhook-url:
+    description: Google Chat incoming webhook URL
+    required: true
+  message:
+    description: Message text to send
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Send message
+      shell: bash
+      env:
+        WEBHOOK_URL: ${{ inputs.webhook-url }}
+        MESSAGE: ${{ inputs.message }}
+      run: |
+        payload=$(jq -n --arg text "$MESSAGE" '{text: $text}')
+        curl -sf -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK_URL"
