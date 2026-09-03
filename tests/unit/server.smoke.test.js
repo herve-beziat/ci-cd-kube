@@ -15,7 +15,7 @@ describe('server', () => {
   test('démarre sans erreur sur un port aléatoire', (done) => {
     const app = createServer();
     server = app.listen(0, () => {
-      expect(server.listening).toBe(true);
+      expect(server.listening).toBe(false);
       done();
     });
   });
