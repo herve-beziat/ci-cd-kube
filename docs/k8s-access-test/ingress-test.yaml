@@ -1,0 +1,40 @@
+# Fichier de validation manuelle de l'accès au cluster Kubernetes fourni par l'école,
+# suivant les etapes 3 et 4 du tutoriel d'acces (INSTRUCTIONS-ETUDIANTS).
+# N'est jamais applique automatiquement par la CI/CD : sert uniquement de reference
+# pour rejouer le test a la main si besoin.
+#
+# Prerequis (etape 3 du tutoriel) :
+#   kubectl create deployment web --image=nginxinc/nginx-unprivileged:1.27-alpine --port=8080
+#   kubectl expose deployment web --port=80 --target-port=8080
+#
+# Application de ce fichier (etape 4) :
+#   kubectl apply -f docs/k8s-access-test/ingress-test.yaml
+#   kubectl get ingress
+#   curl -I https://etudiant-02-web.development.atelier.ovh
+#
+# Nettoyage complet apres test :
+#   kubectl delete ingress web
+#   kubectl delete service web
+#   kubectl delete deployment web
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [etudiant-02-web.development.atelier.ovh]
+      secretName: web-tls
+  rules:
+    - host: etudiant-02-web.development.atelier.ovh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
