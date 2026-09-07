@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pocketman
+  namespace: pocketman
+  labels:
+    app: pocketman
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pocketman
+  template:
+    metadata:
+      labels:
+        app: pocketman
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: pocketman
+          image: ghcr.io/herve-beziat/pocketman:dev
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: DB_PATH
+              value: /data/pocketman.db
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: pocketman-data
+              mountPath: /data
+      volumes:
+        - name: pocketman-data
+          persistentVolumeClaim:
+            claimName: pocketman-data
