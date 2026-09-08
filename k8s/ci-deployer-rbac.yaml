@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pocketman-deployer
+  namespace: pocketman
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pocketman-deployer-token
+  namespace: pocketman
+  annotations:
+    kubernetes.io/service-account.name: pocketman-deployer
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pocketman-deployer
+  namespace: pocketman
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pocketman-deployer
+  namespace: pocketman
+subjects:
+  - kind: ServiceAccount
+    name: pocketman-deployer
+    namespace: pocketman
+roleRef:
+  kind: Role
+  name: pocketman-deployer
+  apiGroup: rbac.authorization.k8s.io

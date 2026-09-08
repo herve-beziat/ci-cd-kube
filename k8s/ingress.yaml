@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pocketman
+  namespace: pocketman
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [etudiant-02-pocketman.development.atelier.ovh]
+      secretName: pocketman-tls
+  rules:
+    - host: etudiant-02-pocketman.development.atelier.ovh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pocketman
+                port:
+                  number: 80
