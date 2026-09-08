@@ -1,4 +1,4 @@
-name: CI — Pull Request vers develop
+name: CI — Pull Request to develop
 
 on:
   pull_request:
@@ -17,14 +17,14 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      - name: Installer les dépendances
+      - name: Install dependencies
         run: npm ci
 
-      - name: Vérifier le style du code
+      - name: Check code style
         run: npm run lint
 
   test:
-    name: Tests + Couverture
+    name: Tests + Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -35,13 +35,13 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      - name: Installer les dépendances
+      - name: Install dependencies
         run: npm ci
 
-      - name: Exécuter les tests avec couverture
+      - name: Run tests with coverage
         run: npm run test:coverage
 
-      - name: Publier le rapport de couverture
+      - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:

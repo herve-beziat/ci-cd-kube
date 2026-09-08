@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const { loggerMiddleware } = require('./middlewares/logger.middleware');
 const { errorMiddleware } = require('./middlewares/error.middleware');
 const requestsRouter = require('./routes/requests.routes');
@@ -10,6 +11,7 @@ function createServer() {
 
   app.use(express.json());
   app.use(loggerMiddleware);
+  app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });

@@ -18,8 +18,10 @@ themeToggle.addEventListener('click', () => {
 applyTheme(localStorage.getItem('pocketman-theme') || 'dark');
 
 async function init() {
-  const port = await window.electronAPI.getPort();
-  apiBase = `http://localhost:${port}`;
+  if (window.electronAPI) {
+    const port = await window.electronAPI.getPort();
+    apiBase = `http://localhost:${port}`;
+  }
   await loadHistory();
   await loadCollections();
 }
