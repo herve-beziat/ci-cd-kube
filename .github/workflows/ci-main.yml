@@ -38,6 +38,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      deploy_tag: ${{ steps.meta.outputs.deploy_tag }}
     steps:
       - uses: actions/checkout@v5
 
@@ -55,9 +57,11 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
             echo "tags=$IMAGE:$VERSION,$IMAGE:latest" >> "$GITHUB_OUTPUT"
+            echo "deploy_tag=$VERSION" >> "$GITHUB_OUTPUT"
           else
             SHA_SHORT="${GITHUB_SHA:0:7}"
             echo "tags=$IMAGE:dev,$IMAGE:$SHA_SHORT" >> "$GITHUB_OUTPUT"
+            echo "deploy_tag=$SHA_SHORT" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build and push image
@@ -67,9 +71,32 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
 
+  deploy:
+    name: Deploy to Kubernetes
+    needs: build-and-push
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.POCKETMAN_KUBECONFIG }}
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_CONTENT" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Update deployment image
+        run: |
+          kubectl set image deployment/pocketman \
+            pocketman=ghcr.io/herve-beziat/pocketman:${{ needs.build-and-push.outputs.deploy_tag }} \
+            -n pocketman
+
+      - name: Wait for rollout to complete
+        run: kubectl rollout status deployment/pocketman -n pocketman --timeout=120s
+
   notify:
     name: Notify Google Chat
-    needs: [lint-and-test, build-and-push]
+    needs: [lint-and-test, build-and-push, deploy]
     if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
@@ -81,7 +108,7 @@ jobs:
           SHA_SHORT="${GITHUB_SHA:0:7}"
           RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-          if [[ "${{ needs.lint-and-test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" ]]; then
+          if [[ "${{ needs.lint-and-test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" || "${{ needs.deploy.result }}" == "failure" ]]; then
             echo "status=failure" >> "$GITHUB_OUTPUT"
             echo "text=Pipeline FAILED - commit $SHA_SHORT by $GITHUB_ACTOR - logs: $RUN_URL" >> "$GITHUB_OUTPUT"
           else
