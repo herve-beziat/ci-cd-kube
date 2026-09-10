@@ -114,9 +114,43 @@ jobs:
       - name: Wait for rollout to complete
         run: kubectl rollout status deployment/pocketman -n pocketman --timeout=120s
 
+  e2e-tests:
+    name: End-to-End Tests
+    needs: deploy
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Cache node modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        env:
+          BASE_URL: https://etudiant-02-pocketman.development.atelier.ovh
+        run: npm run test:e2e
+
   notify:
     name: Notify Google Chat
-    needs: [lint-and-test, build-and-push, deploy]
+    needs: [lint-and-test, build-and-push, deploy, e2e-tests]
     if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -129,7 +163,7 @@ jobs:
           SHA_SHORT="${GITHUB_SHA:0:7}"
           RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-          if [[ "${{ needs.lint-and-test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" || "${{ needs.deploy.result }}" == "failure" ]]; then
+          if [[ "${{ needs.lint-and-test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" || "${{ needs.deploy.result }}" == "failure" || "${{ needs.e2e-tests.result }}" == "failure" ]]; then
             echo "status=failure" >> "$GITHUB_OUTPUT"
             echo "text=Pipeline FAILED - commit $SHA_SHORT by $GITHUB_ACTOR - logs: $RUN_URL" >> "$GITHUB_OUTPUT"
           else
