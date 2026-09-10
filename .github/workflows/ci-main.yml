@@ -150,7 +150,7 @@ jobs:
 
   notify:
     name: Notify Google Chat
-    needs: [lint-and-test, build-and-push, deploy]
+    needs: [lint-and-test, build-and-push, deploy, e2e-tests]
     if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -163,7 +163,7 @@ jobs:
           SHA_SHORT="${GITHUB_SHA:0:7}"
           RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-          if [[ "${{ needs.lint-and-test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" || "${{ needs.deploy.result }}" == "failure" ]]; then
+          if [[ "${{ needs.lint-and-test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" || "${{ needs.deploy.result }}" == "failure" || "${{ needs.e2e-tests.result }}" == "failure" ]]; then
             echo "status=failure" >> "$GITHUB_OUTPUT"
             echo "text=Pipeline FAILED - commit $SHA_SHORT by $GITHUB_ACTOR - logs: $RUN_URL" >> "$GITHUB_OUTPUT"
           else
