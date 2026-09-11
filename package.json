@@ -10,6 +10,7 @@
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
     "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test",
     "lint": "eslint .",
     "build": "electron-builder"
   },
@@ -44,6 +45,7 @@
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "electron": "^33.0.0",
     "electron-builder": "^26.8.1",
     "eslint": "^10.4.0",
