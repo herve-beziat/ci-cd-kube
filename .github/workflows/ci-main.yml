@@ -222,15 +222,22 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build message
+            - name: Build message
         id: message
         run: |
           SHA_SHORT="${GITHUB_SHA:0:7}"
           RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-          if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" || "${{ needs.e2e-tests.result }}" == "failure" || "${{ needs.deploy.result }}" == "failure" ]]; then
+          FAILED_JOBS=""
+          [[ "${{ needs.lint.result }}" == "failure" ]] && FAILED_JOBS="$FAILED_JOBS lint"
+          [[ "${{ needs.test.result }}" == "failure" ]] && FAILED_JOBS="$FAILED_JOBS test"
+          [[ "${{ needs.build-and-push.result }}" == "failure" ]] && FAILED_JOBS="$FAILED_JOBS build-and-push"
+          [[ "${{ needs.e2e-tests.result }}" == "failure" ]] && FAILED_JOBS="$FAILED_JOBS e2e-tests"
+          [[ "${{ needs.deploy.result }}" == "failure" ]] && FAILED_JOBS="$FAILED_JOBS deploy"
+
+          if [[ -n "$FAILED_JOBS" ]]; then
             echo "status=failure" >> "$GITHUB_OUTPUT"
-            echo "text=Pipeline FAILED - commit $SHA_SHORT by $GITHUB_ACTOR - logs: $RUN_URL" >> "$GITHUB_OUTPUT"
+            echo "text=Pipeline FAILED (failed jobs:$FAILED_JOBS) - commit $SHA_SHORT by $GITHUB_ACTOR - logs: $RUN_URL" >> "$GITHUB_OUTPUT"
           else
             echo "status=success" >> "$GITHUB_OUTPUT"
             echo "text=Pipeline SUCCESS - commit $SHA_SHORT by $GITHUB_ACTOR - $RUN_URL" >> "$GITHUB_OUTPUT"
