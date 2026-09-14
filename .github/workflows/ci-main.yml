@@ -222,7 +222,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-            - name: Build message
+      - name: Build message
         id: message
         run: |
           SHA_SHORT="${GITHUB_SHA:0:7}"
