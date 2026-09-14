@@ -1,5 +1,5 @@
 # Stage 1: install production dependencies
-FROM node:20-slim AS deps
+FROM node:24-trixie-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 \
@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 # Stage 2: runtime image
-FROM node:20-slim
+FROM node:24-trixie-slim
 WORKDIR /app
 ENV NODE_ENV=production
 
