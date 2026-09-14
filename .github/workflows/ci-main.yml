@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-and-test:
-    name: Lint + Tests
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -38,14 +38,38 @@ jobs:
         run: npm ci
 
       - name: Check code style
-        run: npm run lint
+        run: npm run lintz
+
+  test:
+    name: Tests + Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Cache node modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Run tests with coverage
         run: npm run test:coverage
 
   build-and-push:
     name: Build and push Docker image
-    needs: lint-and-test
+    needs: [lint, test]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -90,36 +114,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    name: Deploy to Kubernetes
+  e2e-tests:
+    name: End-to-End Tests (${{ matrix.browser }})
     needs: build-and-push
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Configure kubeconfig
-        env:
-          KUBECONFIG_CONTENT: ${{ secrets.POCKETMAN_KUBECONFIG }}
-        run: |
-          mkdir -p "$HOME/.kube"
-          echo "$KUBECONFIG_CONTENT" > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
-
-      - name: Update deployment image
-        run: |
-          kubectl set image deployment/pocketman \
-            pocketman=ghcr.io/herve-beziat/pocketman:${{ needs.build-and-push.outputs.deploy_tag }} \
-            -n pocketman
-
-      - name: Wait for rollout to complete
-        run: kubectl rollout status deployment/pocketman -n pocketman --timeout=120s
-
-  e2e-tests:
-    name: End-to-End Tests
-    needs: deploy
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@v5
 
@@ -143,14 +147,75 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run image under test
+        run: |
+          docker run -d --name pocketman-e2e -p 3000:3000 \
+            ghcr.io/herve-beziat/pocketman:${{ needs.build-and-push.outputs.deploy_tag }}
+
+      - name: Wait for the app to be ready
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:3000/api/health > /dev/null; then
+              echo "App is ready"
+              exit 0
+            fi
+            echo "Waiting for app..."
+            sleep 2
+          done
+          echo "App did not become ready in time"
+          docker logs pocketman-e2e
+          exit 1
+
       - name: Run end-to-end tests
         env:
-          BASE_URL: https://etudiant-02-pocketman.development.atelier.ovh
-        run: npm run test:e2e
+          BASE_URL: http://localhost:3000
+        run: npm run test:e2e -- --project=${{ matrix.browser }}
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs pocketman-e2e
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f pocketman-e2e
+
+
+  deploy:
+    name: Deploy to Kubernetes
+    needs: [build-and-push, e2e-tests]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.POCKETMAN_KUBECONFIG }}
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_CONTENT" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Update deployment image
+        run: |
+          kubectl set image deployment/pocketman \
+            pocketman=ghcr.io/herve-beziat/pocketman:${{ needs.build-and-push.outputs.deploy_tag }} \
+            -n pocketman
+
+      - name: Wait for rollout to complete
+        run: kubectl rollout status deployment/pocketman -n pocketman --timeout=120s
+
+
 
   notify:
     name: Notify Google Chat
-    needs: [lint-and-test, build-and-push, deploy, e2e-tests]
+    needs: [lint, test, build-and-push, e2e-tests, deploy]
     if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -163,7 +228,7 @@ jobs:
           SHA_SHORT="${GITHUB_SHA:0:7}"
           RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-          if [[ "${{ needs.lint-and-test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" || "${{ needs.deploy.result }}" == "failure" || "${{ needs.e2e-tests.result }}" == "failure" ]]; then
+          if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.test.result }}" == "failure" || "${{ needs.build-and-push.result }}" == "failure" || "${{ needs.e2e-tests.result }}" == "failure" || "${{ needs.deploy.result }}" == "failure" ]]; then
             echo "status=failure" >> "$GITHUB_OUTPUT"
             echo "text=Pipeline FAILED - commit $SHA_SHORT by $GITHUB_ACTOR - logs: $RUN_URL" >> "$GITHUB_OUTPUT"
           else
