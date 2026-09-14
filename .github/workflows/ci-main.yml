@@ -38,7 +38,7 @@ jobs:
         run: npm ci
 
       - name: Check code style
-        run: npm run lintz
+        run: npm run lint
 
   test:
     name: Tests + Coverage
@@ -162,7 +162,7 @@ jobs:
       - name: Wait for the app to be ready
         run: |
           for i in $(seq 1 15); do
-            if curl -sf http://localhost:3000/api/health > /dev/null; then
+            if curl -sf http://localhost:3000/api/healthz > /dev/null; then
               echo "App is ready"
               exit 0
             fi
